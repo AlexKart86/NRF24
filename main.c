@@ -11,12 +11,40 @@
 
 #include "worked_delay.h"
 
-unsigned char idxIN = 0, idxOUT = 0;
-char buffer [BUF_SIZE];
+//unsigned char idxIN = 0, idxOUT = 0;
+//char buffer [BUF_SIZE];
 
 unsigned char rIN = 0, rOUT = 0;
 char rBuffer [BUF_SIZE];
 
+
+/*
+
+NRF 24 PINOUT:
+
+  GRND				VCC3.3
+	CE					CSN
+	SCK					MOSI
+	MISO				IRQ
+
+
+connect STM32 PINS to NRF24 (look at SPI_.h:
+
+  GRND -> CRND
+	3.3v -> 3.3v
+	A2	 -> IRQ
+	A4   -> CSN
+	A5	 -> SCK
+  A6	 -> MISO
+  A7	 -> MOSI
+  C13  -> CE
+	
+	other pins connection:	
+	C15  -> BUTTON to GRND
+	A8, A9, A10 -> LEDS+
+	GRND	-> LEDS-
+
+*/
 
 
 
@@ -49,21 +77,16 @@ void setCE(char val)
         GPIO_SetBits(GPIOC, GPIO_Pin_13);
 }
 
-void transmitt_CE1_reseive_setCE(char val)
-{
-	if(val==0)
-        GPIO_ResetBits(GPIOC, GPIO_Pin_13);
-	else 
-        GPIO_SetBits(GPIOC, GPIO_Pin_13);
+void led_refresh(unsigned char data) {
+	GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_9);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_10);
+  if (data == 1) GPIO_SetBits(GPIOA, GPIO_Pin_8);
+	if (data == 2) GPIO_SetBits(GPIOA, GPIO_Pin_9);
+	if (data == 3) GPIO_SetBits(GPIOA, GPIO_Pin_10);	
 }
 
 
-
-
-
-
-
- 
 uint8_t SPIx_Transfer(uint8_t data)
 {
 	// Write data to be transmitted to the SPI data register
@@ -128,27 +151,36 @@ int main()
 	char i=radio_start()+48;//does need for i ???
 	delay_ms(2);
 	setCE(1);
+	
+	unsigned char data = 0;
+	unsigned char s_data = 0;
 
 	while (1)
 	{
+		led_refresh(data);
 		if (rIN != rOUT)//reseive 
 		{
-			char data=rBuffer[rOUT++];			
+			data=rBuffer[rOUT++];			
+			delay_ms(100);
 			rOUT &= BUF_MASK;
-			for(int i=0;i<8;i++)
+			/*for(int i=0;i<8;i++)
 			{
 				if((data>>i)&1)GPIO_SetBits(GPIOC, GPIO_Pin_11);
 				else GPIO_ResetBits(GPIOC, GPIO_Pin_11);
 				delay_ms(100);
-			}
+			}*/
 		    
 		}
 		else if (!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15))//send button  
 		{
-		  unsigned char buf[2];
+		  /*unsigned char buf[2];
 		  buf[0] = 15; //байт данных
 		  buf[1] = 18; //байт данных
-		  send_data(buf, 2);
+		  send_data(buf, 2);*/
+			s_data++;
+			if (s_data > 3) 
+				s_data = 1;
+			send_data(&s_data, 1);
 		  delay_ms(100);
 		}
 		
@@ -232,13 +264,21 @@ void init_usart_button()
 //    port.GPIO_Speed = GPIO_Speed_2MHz;
 //    GPIO_Init(GPIOC, &port);
  
+	
+	  //
+	 RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    GPIO_StructInit(&port);
+    port.GPIO_Mode = GPIO_Mode_Out_PP;
+    port.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
+    port.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_Init(GPIOA, &port);
+	
+	
 	//кнопка
     port.GPIO_Mode = GPIO_Mode_IPU;
     port.GPIO_Pin = GPIO_Pin_15;    
     port.GPIO_Speed = GPIO_Speed_2MHz;
     GPIO_Init(GPIOC, &port);
- 
-
 }
 
  unsigned char radio_read_buf(unsigned char cmd, unsigned char * buf, unsigned char count) {
@@ -361,8 +401,6 @@ unsigned char radio_start() {
 
 
 
-
-
 void on_packet(unsigned char * buf, unsigned char size) {
   char i;
   for (i = 0; i < size; i++)
@@ -372,10 +410,6 @@ void on_packet(unsigned char * buf, unsigned char size) {
   }
   delay_us(100);
 }
-
-
-
-
 
 unsigned char send_data(unsigned char * buf, unsigned char size) {
   unsigned char conf;
