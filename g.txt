@@ -1,0 +1,79 @@
+radio_start()
+--radio_writereg
+--radio_readreg
+
+ __enable_irq ();
+ =============
+    init_usart_button();//
+	init_gpioc13Out_spi_GPIO_Pin_7_A();   //
+ ==============
+   	radio_start()
+    --radio_writereg
+    --radio_readreg
+    
+	CE(1);
+    --GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+	--GPIO_SetBits(GPIOC, GPIO_Pin_13);
+  
+    
+	GPIO_SetBits(GPIOC, GPIO_Pin_11);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_11);
+	GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15))
+    
+	send_data(buf, 2);
+    --CE(0)
+    --radio_readreg(CONFIG)
+    --radio_writereg
+    --radio_write_bufunsigned(unsigned char cmd, unsigned char * buf, unsigned char count) {
+    ----CSN(0);
+    ----spi_send_recv(cmd);
+    -------SPIx_Transfer(data);
+    ----spi_send_recv(*(buf++));
+     -------SPIx_Transfer(data);
+    ---- CSN(1);
+  
+    
+    --CE(0)
+    --CE(1)
+    
+	check_radio();
+    -*radio_is_interrupt()
+    -*radio_cmd(cmd);// Выполняет команду. Возвращает регистр статуса
+    ----+ CSN(0)
+    ----+ spi_send_recv(cmd)
+    ----+ CSN(1)
+    -*radio_writereg(STATUS, status); // Просто запишем регистр обратно, тем самым сбросив биты прерываний
+    -*radio_cmd(FLUSH_TX); // Удалим последний пакет из очереди
+    ----+ CSN(0)
+    ----+ spi_send_recv(cmd)
+    ----+ CSN(1)
+    -*radio_readreg(FIFO_STATUS) // Если в очереди передатчика есть что передавать
+    -*CE(1); // Импульс на линии CE приведёт к началу передачи
+    -*CE(0);
+    -*radio_readreg(CONFIG);
+    -*radio_writereg(CONFIG, conf | (1 << PRIM_RX)); 
+    -*CE(1); // Высокий уровень на линии CE переводит радио-чип в режим приёма
+    -*radio_read_rx_payload_width(); // Узнаём длину пакета
+    ----+CSN(0);
+    ----+spi_send_recv(R_RX_PL_WID);
+    ----+answ = spi_send_recv(0xFF);
+    ----+CSN(1);
+    -*radio_cmd(FLUSH_RX);
+    ----+ CSN(0)
+    ----+ spi_send_recv(cmd)
+    ----+ CSN(1)
+    -*!radio_read_buf(R_RX_PAYLOAD, &buf[0], l); // начитывается пакет
+    -*!unsigned char radio_read_buf(unsigned char cmd, unsigned char * buf, unsigned char count) {
+    ----+CSN(0);
+    ----+ status = spi_send_recv(cmd);
+    ----+ *(buf++) = spi_send_recv(0xFF);
+    ----+ CSN(1);
+    -*on_packet(unsigned char * buf, unsigned char size); // вызываем обработчик полученного пакета
+    -----+ rBuffer[rIN++] = buf[i]; //--rIN global-- 
+    -----+rIN &= BUF_MASK;
+    -*radio_cmd(NOP)
+    ----+ CSN(0)
+    ----+ spi_send_recv(cmd)
+    ----+ CSN(1)
+  }
+		
